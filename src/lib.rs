@@ -2,17 +2,19 @@
 macro_rules! chain_functions {
     ($input:expr, $($operation:expr),+ $(,)?) => {
         {
-            let temp = $input;
-            $(
-                let temp = {
-                    #[cfg(feature = "tracing")]
-                    let span = tracing::span!(tracing::Level::INFO,stringify!($operation));
-                    #[cfg(feature = "tracing")]
-                    let _enter = span.enter();
-                    $operation(temp)?
-                };
-            )+
-            temp
+            {
+                let temp = $input;
+                $(
+                    let temp = {
+                        #[cfg(feature = "tracing")]
+                        let span = tracing::span!(tracing::Level::INFO,stringify!($operation));
+                        #[cfg(feature = "tracing")]
+                        let _enter = span.enter();
+                        $operation(temp)?
+                    };
+                )+
+                Ok(temp)
+            }
         }
     };
 }
@@ -24,12 +26,17 @@ mod tests {
     // Nice and clean.  Macro cleans up extra temp and error handling.
     // Downside is that it's not as easy to debug.
     fn test_chain(input: i32) -> anyhow::Result<i32> {
-        Ok(chain_functions!(
+        chain_functions!(input, add_one, multiply_by_two, subtract_three)
+    }
+
+    // lambdas
+    fn chain_lambda(input: i32) -> anyhow::Result<i32> {
+        chain_functions!(
             input,
             add_one,
-            multiply_by_two,
+            |x| Ok::<_, anyhow::Error>(x * 2),
             subtract_three
-        ))
+        )
     }
 
     // Extra "noise" of temp and error handling, but easier to debug.
@@ -101,4 +108,23 @@ mod tests {
         assert_eq!(manual_chain_inline(4).unwrap(), 7);
         assert_eq!(manual_chain_inline(5).unwrap(), 9);
     }
+
+    #[test]
+    fn test_chain_lambda() {
+        assert_eq!(chain_lambda(1).unwrap(), 1);
+        assert_eq!(chain_lambda(2).unwrap(), 3);
+        assert_eq!(chain_lambda(3).unwrap(), 5);
+        assert_eq!(chain_lambda(4).unwrap(), 7);
+        assert_eq!(chain_lambda(5).unwrap(), 9);
+    }
+
+    #[test]
+    fn inline_lambda() {
+        let res = || -> Result<_, anyhow::Error> {
+            chain_functions!(5, add_one, multiply_by_two, subtract_three)
+        };
+        assert_eq!(res().unwrap(), 9);
+    }
+
+    
 }

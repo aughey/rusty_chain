@@ -5,12 +5,12 @@ use tracing::info;
 // Nice and clean.  Macro cleans up extra temp and error handling.
 // Downside is that it's not as easy to debug.
 fn test_chain(input: i32) -> anyhow::Result<i32> {
-    Ok(chain_functions!(
+    chain_functions!(
         input,
         add_one,
         multiply_by_two,
         subtract_three
-    ))
+    )
 }
 
 // Sample functions for demonstration
